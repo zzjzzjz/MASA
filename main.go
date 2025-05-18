@@ -11,4 +11,5 @@ func main() {
 
 	// 2. 调用 Setup
 	component.Setup(n, t, aids)
+
 }

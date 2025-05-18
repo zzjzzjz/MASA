@@ -1,8 +1,10 @@
 package util
 
 import (
+	"MASA/crypto/component"
 	"crypto/rand"
 	"fmt"
+	bn128 "github.com/fentec-project/bn256"
 	"math/big"
 )
 
@@ -59,30 +61,33 @@ func Distribute(secret *big.Int, modulus *big.Int, t, n int, x []*big.Int) ([]Sh
 	return shares, nil
 }
 
-// Lagrange 拉格朗日插值恢复秘密
-func Lagrange(x, modulus *big.Int, shares ...Share) *big.Int {
+// 更改的Lagrange 拉格朗日插值恢复秘密
+func LagrangeMul(modulus *big.Int, pks []component.Pk, aids []int64) *big.Int {
+	n := len(aids)
 	result := big.NewInt(0)
-	for i, share := range shares {
+	for i := 0; i < n; i++ {
 		numerator := big.NewInt(1)
 		denominator := big.NewInt(1)
 
-		for j, other := range shares {
-			if i != j {
+		for k := 0; k < n; k++ {
+			if i != k {
 				// 计算分子: (x - xj)
-				tmp := new(big.Int).Sub(x, other.X)
+				tmp := big.NewInt(aids[k])
 				numerator.Mul(numerator, tmp)
 
-				// 计算分母: (xi - xj)
-				tmp = new(big.Int).Sub(share.X, other.X)
+				// 计算分母: (xk - xi)
+				tmp = new(big.Int).Sub(big.NewInt(aids[k]), big.NewInt(aids[i]))
 				denominator.Mul(denominator, tmp)
 			}
 		}
 
-		// 计算: yi * (分子/分母)
-		tmp := new(big.Int).Mul(share.Y, numerator)
+		//
+		tmp1 := new(bn128.GT).ScalarMult(pks[i].Alpha, numerator)
+		tmp2 := new(bn128.G1).ScalarMult(pks[i].Beta, numerator)
 		denominator.ModInverse(denominator, modulus)
-		tmp.Mul(tmp, denominator)
-		result.Add(result, tmp)
+		tmp1 = new(bn128.GT).ScalarMult(tmp1, numerator)
+		tmp2 = new(bn128.G1).ScalarMult(tmp2, numerator)
+
 	}
 	return result.Mod(result, modulus)
 }
